@@ -25,4 +25,6 @@ sequenceDiagram
     TimerManager->>TimerManager: Mark monitor as down
 ```
 
+### Diagram Explanation
 
+This sequence diagram shows how the Pulse-Check API tracks device health in real time. A device or administrator first registers a monitor, which starts a countdown timer managed by the system. Each time the device sends a heartbeat, the timer is reset, ensuring the system knows the device is still active. If no heartbeat is received before the timeout expires, the timer reaches zero and automatically triggers an alert, marking the device as "down". This design guarantees that failures are detected instantly without requiring manual monitoring.

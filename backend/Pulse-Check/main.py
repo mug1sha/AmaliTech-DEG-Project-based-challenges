@@ -37,6 +37,9 @@ def start_timer(monitor_id: str):
 
     tasks[monitor_id] = asyncio.create_task(countdown(monitor_id))
 
+@app.get("/")
+def root():
+    return {"message": "Idempotency Gateway API is running"}
 
 @app.post("/monitors", status_code=201)
 async def create_monitor(monitor: MonitorCreate):
