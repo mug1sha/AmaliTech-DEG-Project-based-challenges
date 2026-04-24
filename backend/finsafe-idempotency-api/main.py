@@ -19,6 +19,9 @@ def hash_payload(payload: dict) -> str:
     payload_string = json.dumps(payload, sort_keys=True)
     return hashlib.sha256(payload_string.encode()).hexdigest()
 
+@app.get("/")
+def home():
+    return {"message": "FinSafe Idempotency API is running"}
 
 @app.post("/process-payment")
 async def process_payment(
