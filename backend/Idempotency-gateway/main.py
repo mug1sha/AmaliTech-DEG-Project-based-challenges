@@ -20,8 +20,8 @@ def hash_payload(payload: dict) -> str:
     return hashlib.sha256(payload_string.encode()).hexdigest()
 
 @app.get("/")
-def home():
-    return {"message": "FinSafe Idempotency API is running"}
+def root():
+    return {"message": "Idempotency Gateway API is running"}
 
 @app.post("/process-payment")
 async def process_payment(
