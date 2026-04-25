@@ -239,3 +239,11 @@ In real-world systems, failure detection is everything.
 And silence… is the most dangerous signal of all.
 
 ---
+## Live API
+
+## 🌐 Live API
+
+- Base URL: https://amalitech-deg-project-based-challenges-production.up.railway.app/
+- API Docs: https://amalitech-deg-project-based-challenges-production.up.railway.app/docs
+
+---
