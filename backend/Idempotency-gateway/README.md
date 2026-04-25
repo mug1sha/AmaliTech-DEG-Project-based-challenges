@@ -1,195 +1,222 @@
-# FinSafe Idempotency Layer API
+# Pulse-Check API — Dead Man’s Switch Monitoring System
 
-A RESTful payment processing simulation that ensures **exactly-once execution** using an idempotency mechanism, preventing duplicate charges caused by network retries.
-
----
-
-## Problem Overview
-
-In real-world e-commerce systems, unstable networks can cause payment requests to be retried automatically.
-
-Without protection:
-
-* A user clicks **“Pay”**
-* Network delay occurs
-* The client retries the request
-* The system processes both requests
-
- Result: **Customers are charged multiple times**
+A backend service that monitors remote devices by expecting periodic heartbeats.
+If a device fails to send a signal within a defined timeout, the system automatically triggers an alert.
 
 ---
 
-## Solution
-
-This API introduces an **Idempotency Layer** that guarantees:
-
-* A payment request is processed **only once**
-* Duplicate requests return the **same saved response**
-* Conflicting requests are **rejected**
-* Concurrent requests are **safely synchronized**
-
----
-
-## How It Works
-
-Every request must include:
-
-```http
-Idempotency-Key: unique-string
-```
-
-### Request Handling Logic
-
-| Scenario                      | Behavior                                      |
-| ----------------------------- | --------------------------------------------- |
-| First request with new key    | Process payment and store response            |
-| Same key + same payload       | Return cached response instantly              |
-| Same key + different payload  | Reject request (409 Conflict)                 |
-| Concurrent identical requests | Second request waits and receives same result |
-
----
-
-## Added Feature: Idempotency Key Expiration (TTL)
-
-To make the system more robust and production-ready, a **Time-To-Live (TTL)** mechanism is implemented.
-
-### What It Does
-
-Each idempotency key is stored with a timestamp and automatically expires after **24 hours**.
-
-### Why It Matters
-
-* Prevents **unbounded memory growth**
-* Avoids **stale key conflicts**
-* Allows safe reuse of keys after expiration
-* Mimics real-world payment systems like Stripe
-
-### Behavior with TTL
-
-| Scenario                     | Result                   |
-| ---------------------------- | ------------------------ |
-| Duplicate request within 24h | Cached response returned |
-| Same key after expiration    | Treated as a new payment |
-| Expired key                  | Automatically removed    |
-
----
-
-## Architecture Diagram
+## 1. Architecture Diagram
 
 ```mermaid
 sequenceDiagram
-    participant Client
+    participant Device/Admin
     participant API
-    participant Store
-    participant PaymentProcessor
+    participant TimerManager
+    participant AlertSystem
 
-    Client->>API: POST /process-payment + Idempotency-Key
-    API->>Store: Check key
+    Device/Admin->>API: POST /monitors
+    API->>TimerManager: Create monitor + start countdown
+    TimerManager-->>API: Monitor registered
+    API-->>Device/Admin: 201 Created
 
-    alt Key does not exist or expired
-        API->>PaymentProcessor: Process payment
-        PaymentProcessor-->>API: Success
-        API->>Store: Save response + timestamp
-        API-->>Client: Return 201 Created
-    else Same key and same body
-        API->>Store: Fetch saved response
-        API-->>Client: Return cached response (X-Cache-Hit: true)
-    else Same key but different body
-        API-->>Client: Return 409 Conflict
-    end
+    Device/Admin->>API: POST /monitors/{id}/heartbeat
+    API->>TimerManager: Reset countdown
+    TimerManager-->>API: Timer restarted
+    API-->>Device/Admin: 200 OK
+
+    TimerManager->>TimerManager: Countdown reaches zero
+    TimerManager->>AlertSystem: Trigger alert
+    TimerManager->>TimerManager: Mark monitor as down
+```
+
+**Explanation:**
+Each device registers a monitor with a timeout. The system starts a countdown timer.
+Every heartbeat resets the timer. If no heartbeat is received before timeout, the system triggers an alert and marks the device as **down**.
+
+---
+
+## 2. Setup Instructions
+
+### Clone Repository
+
+```bash
+git clone https://github.com/YOUR_USERNAME/pulse-check-api.git
+cd pulse-check-api
+```
+
+### Create Virtual Environment
+
+```bash
+python -m venv .venv
+source .venv/bin/activate   # Linux / Mac
+# .venv\Scripts\activate    # Windows
+```
+
+### Install Dependencies
+
+```bash
+pip install fastapi uvicorn pydantic
+```
+
+### Run Server
+
+```bash
+uvicorn main:app --reload
+```
+
+### Access API Docs
+
+```
+http://127.0.0.1:8000/docs
 ```
 
 ---
 
-## API Endpoint
+## 3. API Documentation
 
-### POST `/process-payment`
+### 🔹 Create Monitor
 
-#### Headers
+**POST /monitors**
 
-```http
-Idempotency-Key: unique-string
-Content-Type: application/json
-```
+Registers a new device monitor and starts a countdown.
 
-#### Body
+**Request:**
 
 ```json
 {
-  "amount": 100,
-  "currency": "GHS"
+  "id": "device-123",
+  "timeout": 60,
+  "alert_email": "admin@critmon.com"
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "Monitor device-123 created successfully",
+  "status": "active",
+  "remaining_seconds": 60
 }
 ```
 
 ---
 
-## Example Scenarios
+### 🔹 Send Heartbeat
 
-### First Request (Processed)
+**POST /monitors/{id}/heartbeat**
+
+Resets the timer for a device.
+
+**Responses:**
+
+* `200 OK` → Timer reset
+* `404 Not Found` → Device not registered
+
+---
+
+### 🔹 Pause Monitor (Bonus Feature)
+
+**POST /monitors/{id}/pause**
+
+Pauses monitoring (no alerts triggered).
+
+---
+
+### 🔹 Get Monitor Status
+
+**GET /monitors/{id}/status**
+
+Returns real-time monitor state.
+
+**Response:**
 
 ```json
 {
-  "message": "Charged 100 GHS",
-  "status": "success"
+  "id": "device-123",
+  "status": "active",
+  "timeout": 60,
+  "remaining_seconds": 42,
+  "last_heartbeat": "2026-04-25T10:30:00"
 }
 ```
 
 ---
 
-### Duplicate Request (Cached)
+### 🔹 Get All Monitors
 
-* No delay
-* Same response returned
-* Header:
+**GET /monitors**
 
-```http
-X-Cache-Hit: true
-```
+Returns all registered monitors.
 
 ---
 
-### Same Key, Different Payload
+## 4. Design Decisions
 
-```json
-{
-  "detail": "Idempotency key already used for a different request body."
-}
-```
+### 1. In-Memory Storage
+
+* Used Python dictionaries for simplicity and speed
+* Suitable for prototype/demo environments
+* Trade-off: Data is lost on restart
 
 ---
 
-## Tech Stack
+### 2. Async Timer Management (asyncio)
 
-* FastAPI (Python)
-* Async Locks (Concurrency control)
-* In-memory store (extendable to Redis)
+* Each monitor runs a non-blocking countdown task
+* Efficient for handling multiple devices concurrently
+* Avoids thread overhead
+
+---
+
+### 3. Deadline-Based Timing
+
+* Instead of just counting seconds, a deadline timestamp is stored
+* Enables accurate calculation of `remaining_seconds`
+* Improves observability for users
+
+---
+
+### 4. Separation of Concerns
+
+* Timer logic (`countdown`, `start_timer`) separated from API routes
+* Keeps code modular and easier to maintain
+
+---
+
+### 5. Simulated Alert System
+
+* Alerts are logged using `console.log` (print)
+* In production, this would be replaced with:
+
+  * Email services (SMTP, SendGrid)
+  * Webhooks
+  * SMS/Push notifications
+
+---
+
+## Limitations
+
+* No persistent database
+* No authentication/security
+* Not horizontally scalable
+* Alerts are simulated only
 
 ---
 
 ## Future Improvements
 
-* Redis for persistent storage
-* Monitoring & logging
-* Authentication & rate limiting
-* Cloud deployment
+* Integrate PostgreSQL for persistent storage
+* Use Redis + Celery for reliable background jobs
+* Add authentication (API keys per device)
+* Implement real alert delivery (email/webhooks)
+* Build monitoring dashboard UI
 
 ---
 
-## Summary
-
-This system ensures:
-
-* **No double charging**
-* **Safe retries**
-* **Data integrity**
-* **Concurrency control**
-* **Scalable key management with TTL**
-
-It reflects how modern payment systems handle **reliability and fault tolerance in distributed environments**.
-
 ## Author
-### Godson Mugisha
 
+**Godson Mugisha**
 Backend Developer | Security Enthusiast
-Portfolio: https://mug1sha.github.io/
-Passionate about building real-world, production-grade systems
+
+---
