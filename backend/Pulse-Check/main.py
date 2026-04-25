@@ -5,13 +5,13 @@ import asyncio
 
 app = FastAPI(title="Pulse-Check API")
 
-
+# Request model for creating a monitor
 class MonitorCreate(BaseModel):
     id: str
     timeout: int
     alert_email: EmailStr
 
-
+# In-memory storage (for demo purposes)
 monitors = {}
 tasks = {}
 
@@ -45,7 +45,7 @@ async def countdown(monitor_id: str):
             "time": now_utc().isoformat()
         }
 
-        print(alert)
+        print(alert) # Simulated alert system
 
 
 def start_timer(monitor_id: str):
