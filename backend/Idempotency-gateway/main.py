@@ -31,6 +31,10 @@ def is_expired(created_at: float) -> bool:
     return time.time() - created_at > TTL_SECONDS
 
 
+@app.get("/")
+def home():
+    return {"message": "FinSafe Idempotency API is running"}
+
 @app.post("/process-payment")
 async def process_payment(
     payment: PaymentRequest,
