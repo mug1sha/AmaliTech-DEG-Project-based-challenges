@@ -1,15 +1,15 @@
 # Pulse-Check API — Dead Man’s Switch Monitoring System
 
-> **A fault-detection backend service that ensures remote devices stay alive — or alerts you instantly when they don’t.**
+> A fault-detection backend service that ensures remote devices stay alive — or alerts you instantly when they don’t.
 
 ---
 
 ## Overview
 
-Pulse-Check API is a **Dead Man’s Switch system** designed for environments with unreliable connectivity (e.g., solar farms, weather stations, IoT infrastructure).
+Pulse-Check API is a Dead Man’s Switch system designed for environments with unreliable connectivity (e.g., solar farms, weather stations, IoT infrastructure).
 
-Devices must periodically send a **heartbeat signal**.
-If they fail to do so within a defined timeout, the system automatically marks them as **down** and triggers an alert.
+Devices must periodically send a heartbeat signal.  
+If they fail to do so within a defined timeout, the system automatically marks them as down and triggers an alert.
 
 No human monitoring required. No blind spots. Just real-time failure detection.
 
@@ -17,12 +17,12 @@ No human monitoring required. No blind spots. Just real-time failure detection.
 
 ## Core Features
 
-* Register monitors with configurable timeouts
-* Heartbeat system to reset countdown timers
-* Automatic alert triggering when a device goes silent
-* Pause monitoring during maintenance (Snooze feature)
-* Real-time status tracking with remaining countdown time
-* Clean RESTful API with FastAPI
+- Register monitors with configurable timeouts  
+- Heartbeat system to reset countdown timers  
+- Automatic alert triggering when a device goes silent  
+- Pause monitoring during maintenance (Snooze feature)  
+- Real-time status tracking with remaining countdown time  
+- Clean RESTful API with FastAPI  
 
 ---
 
@@ -53,15 +53,15 @@ sequenceDiagram
 
 ### Diagram Explanation
 
-This diagram illustrates how the system continuously tracks device health.
-Each registered device has a countdown timer that resets on every heartbeat.
+This diagram illustrates how the system continuously tracks device health.  
+Each registered device has a countdown timer that resets on every heartbeat.  
 If the timer expires without receiving a signal, the system automatically triggers an alert and marks the device as **down**, ensuring immediate failure detection.
 
 ---
 
 ## Getting Started
 
-### 1. Clone Your Fork
+### 1. Clone Repository
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/pulse-check-api.git
@@ -94,7 +94,7 @@ http://127.0.0.1:8000/docs
 
 ### 🔹 Register Monitor
 
-```http
+```
 POST /monitors
 ```
 
@@ -112,27 +112,27 @@ POST /monitors
 
 ### 🔹 Send Heartbeat
 
-```http
+```
 POST /monitors/{id}/heartbeat
 ```
 
-Resets the countdown timer.
+Resets the countdown timer and keeps the device marked as active.
 
 ---
 
 ### 🔹 Pause Monitor (Snooze)
 
-```http
+```
 POST /monitors/{id}/pause
 ```
 
-Stops monitoring temporarily (no alerts will trigger).
+Stops monitoring temporarily. No alerts will be triggered during this period.
 
 ---
 
 ### 🔹 Get Monitor Status
 
-```http
+```
 GET /monitors/{id}/status
 ```
 
@@ -152,15 +152,17 @@ GET /monitors/{id}/status
 
 ### 🔹 Get All Monitors
 
-```http
+```
 GET /monitors
 ```
+
+Returns all registered monitors.
 
 ---
 
 ## Testing the System
 
-### Register a monitor (short timeout for testing):
+### Register a monitor (short timeout for testing)
 
 ```bash
 curl -X POST http://127.0.0.1:8000/monitors \
@@ -168,13 +170,13 @@ curl -X POST http://127.0.0.1:8000/monitors \
 -d '{"id":"device-test","timeout":5,"alert_email":"admin@test.com"}'
 ```
 
-### Wait 5 seconds → Expected output:
+### Wait 5 seconds → Expected output
 
 ```json
 {"ALERT": "Device device-test is down!", "time": "..."}
 ```
 
-### Reset before timeout:
+### Reset before timeout
 
 ```bash
 curl -X POST http://127.0.0.1:8000/monitors/device-test/heartbeat
@@ -184,56 +186,78 @@ curl -X POST http://127.0.0.1:8000/monitors/device-test/heartbeat
 
 ## Design Decisions
 
-* **Async Timers (asyncio):** Lightweight and efficient for handling multiple countdowns
-* **In-Memory Storage:** Fast for prototyping and demonstration
-* **Stateless API Layer:** Business logic separated from HTTP layer
-* **Deadline-Based Timing:** Enables accurate remaining time calculation
+- **Async Timers (asyncio):** Lightweight and efficient for handling multiple countdowns  
+- **In-Memory Storage:** Fast for prototyping and demonstration  
+- **Stateless API Layer:** Business logic separated from HTTP layer  
+- **Deadline-Based Timing:** Enables accurate remaining time calculation  
+
+---
+
+## Added Extra Feature: Real-Time Monitor Status (Observability Enhancement)
+
+An additional feature was implemented to enhance system observability and proactive monitoring.
+
+The endpoint:
+
+```
+GET /monitors/{id}/status
+```
+
+provides real-time insights into each device’s state beyond simple up/down status. It returns:
+
+- `remaining_seconds` → time left before the device is considered down  
+- `last_heartbeat` → last time the device successfully communicated  
+- `status` → current state (active, paused, down)  
+
+This transforms the system from purely **reactive** (only alerting after failure) to **proactive**, allowing operators to anticipate issues before they occur.
+
+For example, a device with very low `remaining_seconds` can be investigated before it fully goes offline, improving response time and system reliability.
+
+This feature significantly improves usability for monitoring dashboards and aligns the system with real-world infrastructure monitoring practices.
 
 ---
 
 ## Limitations (Current Version)
 
-* Data is stored in-memory (lost on restart)
-* Not horizontally scalable
-* Alerts are simulated via `console.log`
+- Data is stored in-memory (lost on restart)  
+- Not horizontally scalable  
+- Alerts are simulated via `console.log`  
 
 ---
 
 ## Production Improvements
 
-To make this system enterprise-ready:
-
-* Replace in-memory storage with **PostgreSQL**
-* Use **Redis + Celery / BullMQ** for reliable background jobs
-* Integrate real alert systems (Email, SMS, Webhooks)
-* Add authentication & API keys for device security
-* Add monitoring dashboard (Grafana / custom UI)
+- Replace in-memory storage with PostgreSQL  
+- Use Redis + Celery / BullMQ for reliable background jobs  
+- Integrate real alert systems (Email, SMS, Webhooks)  
+- Add authentication & API keys for device security  
+- Add monitoring dashboard (Grafana / custom UI)  
 
 ---
 
 ## Future Enhancements
 
-* Retry logic before declaring a device down
-* Multi-channel alerting (Slack, SMS, Email)
-* Device grouping and tagging
-* Historical uptime analytics
-* Web dashboard for real-time monitoring
+- Retry logic before declaring a device down  
+- Multi-channel alerting (Slack, SMS, Email)  
+- Device grouping and tagging  
+- Historical uptime analytics  
+- Web dashboard for real-time monitoring  
 
 ---
 
 ## Author
 
-**Godson Mugisha**
+Godson Mugisha  
 
-* Backend Developer | Security Enthusiast
-* Portfolio: https://mug1sha.github.io/
-* Passionate about building real-world, production-grade systems
+- Backend Developer | Security Enthusiast  
+- Portfolio: https://mug1sha.github.io/  
+- Passionate about building real-world, production-grade systems  
 
 ---
 
 ## Final Thought
 
-This project demonstrates how a simple concept — *“Are you still alive?”* — can be transformed into a **reliable backend system for critical infrastructure monitoring**.
+This project demonstrates how a simple concept — *“Are you still alive?”* — can be transformed into a reliable backend system for critical infrastructure monitoring.
 
 In real-world systems, failure detection is everything.
 And silence… is the most dangerous signal of all.
